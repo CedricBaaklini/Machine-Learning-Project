@@ -25,6 +25,7 @@
   <component name="PhpIncludePathManager">
     <include_path>
       <path value="$USER_HOME$/Development/wordpress" />
+      <path value="$USER_HOME$/Development/Joomla_5" />
     </include_path>
   </component>
   <component name="PhpStan">

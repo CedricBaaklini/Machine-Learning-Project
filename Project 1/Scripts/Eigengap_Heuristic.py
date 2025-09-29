@@ -3,7 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.metrics import pairwise_kernels
 
-mall_customer_data = pd.read_csv("/ocean/projects/cis250151p/jmathis/project1/Mall_Customers.csv")
+mall_customer_data = pd.read_csv("../Mall_Customers.csv")
 mall_customer_data = pd.get_dummies(mall_customer_data, drop_first=True)
 mall_customer_data = mall_customer_data.ffill()
 
@@ -25,7 +25,7 @@ eigvals = np.sort(eigvals)
 gaps = np.diff(eigvals)
 
 #First 20 vals
-print("n\First 20 eigenvalues:")
+print("\nFirst 20 eigenvalues:")
 for i, val in enumerate(eigvals[:20], start=1):
     print(f"Eigenvalue {i}: {val}")
 

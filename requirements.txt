@@ -4,3 +4,4 @@ numpy>=2.3.3
 scipy>=1.16.2
 scikit-learn>=1.7.2
 scikit-fuzzy>=0.5.0
+mnist>=0.2.2

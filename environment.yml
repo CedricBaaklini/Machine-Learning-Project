@@ -1,0 +1,19 @@
+name: machine-learning-env
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python>=3.8
+  - pandas>=2.3.2
+  - matplotlib>=3.10.6
+  - numpy>=2.3.3
+  - scipy>=1.16.2
+  - scikit-learn>=1.7.2
+  - scikit-fuzzy>=0.5.0
+  - mnist>=0.2.2
+  - jupyter>=1.1.1
+  - pip>=23.4.2
+  - pip:
+      torch>=1.13.1
+      torchvision>=0.14.1
+    # Add any pip-only packages here if needed

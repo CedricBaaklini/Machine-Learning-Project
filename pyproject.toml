@@ -1,0 +1,25 @@
+[project]
+name = "machine-learning-project"
+version = "0.1.0"
+description = "A machine learning project using PyTorch"
+authors = [
+    { name = "Cedric Baaklini", email = "cabaak9609@ung.edu" }
+]
+requires-python = ">=3.8"
+dependencies = [
+    "pandas>=2.3.2",
+    "matplotlib>=3.10.6",
+    "numpy>=2.3.3",
+    "scipy>=1.16.2",
+    "scikit-learn>=1.7.2",
+    "scikit-fuzzy>=0.5.0",
+    "mnist>=0.2.2",
+    "jupyter>=1.1.1",
+    "uv>=0.9.3",
+    "torch>=1.13.1",
+    "torchvision>=0.14.1"
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"

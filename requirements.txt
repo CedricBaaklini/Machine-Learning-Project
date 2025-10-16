@@ -6,5 +6,6 @@ scikit-learn>=1.7.2
 scikit-fuzzy>=0.5.0
 mnist>=0.2.2
 jupyter>=1.1.1
+uv>=0.9.3
 torch>=1.13.1
 torchvision>=0.14.1

@@ -18,6 +18,7 @@ dependencies = [
     "uv==0.9.4",
     "torch>=1.13.1",
     "torchvision>=0.14.1",
+    "ruff>=0.14.1",
 ]
 
 [build-system]

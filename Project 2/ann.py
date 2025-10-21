@@ -43,7 +43,7 @@ def evaluate(loader):
     
     return loss_sum / max(1, batches), correct / max(1, total)
 
-if __name__ == "__main__":
+def main():
     num_workers = 0
     pin_memory = torch.cuda.is_available()
 
@@ -52,11 +52,11 @@ if __name__ == "__main__":
 
     train_size = 50_000
     val_size = 10_000
-    train_set, val_set = random_split(train_full, [train_size, val_size], generator=torch.Generator().manual_seed(42))
+    train_set, val_set = random_split(train_full, [train_size, val_size], torch.Generator().manual_seed(42))
 
-    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=pin_memory)
-    val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=pin_memory)
-    test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=pin_memory)
+    train_loader = DataLoader(train_set, batch_size, True, num_workers=num_workers, pin_memory=pin_memory)
+    val_loader = DataLoader(val_set, batch_size, False, num_workers=num_workers, pin_memory=pin_memory)
+    test_loader = DataLoader(test_set, batch_size, False, num_workers=num_workers, pin_memory=pin_memory)
 
     model.to(device)
 
@@ -79,3 +79,6 @@ if __name__ == "__main__":
 
     test_loss, test_acc = evaluate(test_loader)
     print(f"Test: loss={test_loss:.4f} acc={test_acc * 100:.2f}%")
+
+if __name__ == "__main__":
+    main()

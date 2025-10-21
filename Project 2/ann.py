@@ -12,17 +12,6 @@ num_epochs = 10
 
 transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize(0.1307, 0.3081)])
 
-train_full = datasets.MNIST(root="./data", train=True, download=True, transform=transform)
-test_set = datasets.MNIST(root="./data", train=True, download=False, transform=transform)
-
-train_size = 50_000
-val_size = 10_000
-train_set, val_set = random_split(train_full, [train_size, val_size], generator=torch.Generator().manual_seed(42))
-
-train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=2, pin_memory=True)
-val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False, num_workers=2, pin_memory=True)
-test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False, num_workers=2, pin_memory=True)
-
 class SimpleANN(nn.Module):
     def __init__(self):
         super().__init__()
@@ -54,22 +43,39 @@ def evaluate(loader):
     
     return loss_sum / max(1, batches), correct / max(1, total)
 
-for epoch in range(1, num_epochs + 1):
-    model.train()
-    running_loss, steps = 0.0, 0
-    for x, y in train_loader:
-        x, y = x.to(device, non_blocking=True), y.to(device, non_blocking=True)
-        optimizer.zero_grad(set_to_none=True)
-        logits = model(x)
-        loss = criterion(logits, y)
-        loss.backward()
-        optimizer.step()
-        running_loss += loss.item()
-        steps += 1
-        
-    train_loss = running_loss / max(1, steps)
-    val_loss, val_acc = evaluate(val_loader)
-    print(f"Epoch {epoch:02d}: train_loss={train_loss:.4f} val_loss={val_loss:.4f} val_acc={val_acc * 100:.2f}%")
+if __name__ == "__main__":
+    num_workers = 0
+    pin_memory = torch.cuda.is_available()
 
-test_loss, test_acc = evaluate(test_loader)
-print(f"Test: loss={test_loss:.4f} acc={test_acc * 100:.2f}%")
+    train_full = datasets.MNIST(root="./data", train=True, download=True, transform=transform)
+    test_set = datasets.MNIST(root="./data", train=False, download=True, transform=transform)
+
+    train_size = 50_000
+    val_size = 10_000
+    train_set, val_set = random_split(train_full, [train_size, val_size], generator=torch.Generator().manual_seed(42))
+
+    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=pin_memory)
+    val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=pin_memory)
+    test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=pin_memory)
+
+    model.to(device)
+
+    for epoch in range(1, num_epochs + 1):
+        model.train()
+        running_loss, steps = 0.0, 0
+        for x, y in train_loader:
+            x, y = x.to(device, non_blocking=True), y.to(device, non_blocking=True)
+            optimizer.zero_grad(set_to_none=True)
+            logits = model(x)
+            loss = criterion(logits, y)
+            loss.backward()
+            optimizer.step()
+            running_loss += loss.item()
+            steps += 1
+            
+        train_loss = running_loss / max(1, steps)
+        val_loss, val_acc = evaluate(val_loader)
+        print(f"Epoch {epoch:02d}: train_loss={train_loss:.4f} val_loss={val_loss:.4f} val_acc={val_acc * 100:.2f}%")
+
+    test_loss, test_acc = evaluate(test_loader)
+    print(f"Test: loss={test_loss:.4f} acc={test_acc * 100:.2f}%")

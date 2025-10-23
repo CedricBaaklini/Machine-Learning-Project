@@ -1,14 +1,14 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader, random_split, Subset
+from torch.utils.data import DataLoader, random_split
 from torchvision import datasets, transforms
 
 torch.manual_seed(42)
 
 batch_size = 128
 lr = 1e-3
-num_epochs = 10
+num_epochs = 20
 
 transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize(0.1307, 0.3081)])
 

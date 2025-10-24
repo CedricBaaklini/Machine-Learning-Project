@@ -7,7 +7,8 @@
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=cabaak9609@ung.edu
 
-cd /jet/home/baaklini/Machine-Learning-Project/Project 2
+cd /ocean/projects/cis250151p/baaklini/.conda
+
 module load anaconda3
 conda activate ml_project
 

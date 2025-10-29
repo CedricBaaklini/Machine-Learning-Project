@@ -1,3 +1,12 @@
+"""
+Project 2 - Artificial Neural Network using MNIST dataset
+Description:
+   This script trains a simple feedforward neural network on the MNIST dataset.
+   It implements Cross-Entropy Loss for multi-class classification using PyTorch.
+   The model is trained for 20 epochs and ouputs two plots:
+       - loss_curve_CE.png     (training and validation loss)
+       - val_acc_CE.png        (validation accuracty)
+"""
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -6,7 +15,12 @@ from pathlib import Path
 from torch.utils.data import DataLoader, random_split
 from torchvision import datasets, transforms
 
+# --- Loss Function ---
 def make_loss(name = "ce", class_weights = None):
+    """
+    Creates and returns a specified loss function.
+    Default: CrossEntropyLoss for multi-class classification.
+    """
     name = name.lower()
 
     if name == "ce":
@@ -19,10 +33,10 @@ batch_size = 128
 lr = 1e-3
 num_epochs = 20
 
-# Data Preprocessing
+# --- Data Preprocessing ---
 transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize(0.1307, 0.3081)])
 
-# Neural Network Architecture
+# --- Neural Network Architecture ---
 class SimpleANN(nn.Module):
     def __init__(self):
         super().__init__()
@@ -31,6 +45,7 @@ class SimpleANN(nn.Module):
     def forward(self, x):
         return self.net(x)
 
+# ---- Setup ----
 model = SimpleANN()
 
 loss_name = "CE" # Cross Entropy Loss
@@ -39,7 +54,12 @@ optimizer = optim.Adam(model.parameters(), lr)
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+# --- Evaluation Function ---
 def evaluate(loader):
+    """
+    Evaluates model performance on a given dataset loader.
+    Returns average loss and classification accuracy.
+    """
     model.eval()
     correct, total, loss_sum, batches = 0, 0, 0.0, 0
     with torch.no_grad():
@@ -55,7 +75,11 @@ def evaluate(loader):
     
     return loss_sum / max(1, batches), correct / max(1, total)
 
+# --- Main Training Loop ---
 def main():
+    """
+    Main training function: loads data, trains the model, evaluates, and saves results.
+    """
     num_workers = 0
     pin_memory = torch.cuda.is_available()
     epoch_losses, val_losses, val_accs = [], [], []
@@ -99,6 +123,7 @@ def main():
     test_loss, test_acc = evaluate(test_loader)
     print(f"Test: loss={test_loss:.4f} acc={test_acc * 100:.2f}%")
 
+    # ---- Save Plots ----
     out_dir = Path("reports")
     out_dir.mkdir(parents = True, exist_ok= True)
 

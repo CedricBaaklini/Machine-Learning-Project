@@ -113,7 +113,7 @@ def main():
     test_loss, test_acc = evaluate(test_loader)
     print(f"Test: loss={test_loss:.4f} acc={test_acc * 100:.2f}%")
 
-    out_dir = Path("Project 2") / "reports"
+    out_dir = Path("reports")
     out_dir.mkdir(parents = True, exist_ok= True)
 
     plt.figure()

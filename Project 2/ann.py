@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import motplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 from pathlib import Path
 from torch.utils.data import DataLoader, random_split
 from torchvision import datasets, transforms

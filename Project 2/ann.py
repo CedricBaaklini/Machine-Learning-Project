@@ -74,10 +74,6 @@ def main():
     pin_memory = torch.cuda.is_available()
     epoch_losses, val_losses, val_accs = [], [], []
 
-    epoch_losses.append(train_loss)
-    val_losses.append(val_loss)
-    val_accs.append(val_acc)
-
     train_full = datasets.MNIST(root="./data", train=True, download=True, transform=transform)
     test_set = datasets.MNIST(root="./data", train=False, download=True, transform=transform)
 
@@ -94,6 +90,7 @@ def main():
     for epoch in range(1, num_epochs + 1):
         model.train()
         running_loss, steps = 0.0, 0
+
         for x, y in train_loader:
             x, y = x.to(device, non_blocking=True), y.to(device, non_blocking=True)
             optimizer.zero_grad(set_to_none=True)
@@ -106,6 +103,11 @@ def main():
             
         train_loss = running_loss / max(1, steps)
         val_loss, val_acc = evaluate(val_loader)
+
+        epoch_losses.append(train_loss)
+        val_losses.append(val_loss)
+        val_accs.append(val_acc)
+
         print(f"Epoch {epoch:02d}: train_loss={train_loss:.4f} val_loss={val_loss:.4f} val_acc={val_acc * 100:.2f}%")
 
     test_loss, test_acc = evaluate(test_loader)
@@ -118,7 +120,7 @@ def main():
     plt.plot(epoch_losses, label = "train")
     plt.plot(val_losses, label = "val")
     plt.xlabel("Epoch")
-    plt.ylable("Loss")
+    plt.ylabel("Loss")
     plt.title(f"Loss ({loss_name})")
     plt.legend()
     plt.tight_layout()

@@ -4,6 +4,29 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, random_split
 from torchvision import datasets, transforms
 
+def make_loss(name = "ce", num_classes = 10, label_smoothing = 0.1, class_weights = None):
+    name = name.lower()
+    if name == "ce":
+        return nn.CrossEntropyLoss(weight = class_weights)
+    if name == "ce_smooth":
+        return nn.CrossEntropyLoss(weight = class_weights, label_smoothing = label_smoothing)
+    if name == "focal":
+        # focal loss wrapper
+        class FocalLoss(nn.Module):
+            def __init__(self, gamma = 2.0, weight = None):
+                super().__init__()
+                self.gamma = gamma
+                self.ce = nn.CrossEntropyLoss(weight = weight, reduction = "none")
+
+            def forward(self, logits, target):
+                ce = self.ce(logits, target)
+                pt = torch.softmax(logits, dim = 1)
+                pt = pt[torch.arange(target.size(0)), target]
+                focal = (1 - pt).pow(self.gamma) * ce
+                return focal.mean()
+        return FocalLoss(weight = class_weights)
+    raise ValueError(f"Unknown loss '{name}'")
+
 torch.manual_seed(42)
 
 batch_size = 128

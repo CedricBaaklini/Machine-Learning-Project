@@ -95,8 +95,7 @@ def main():
         val_losses.append(val_loss)
         train_accuracies.append(train_acc)
         val_accuracies.append(val_acc)
-        print(f"Epoch {epoch:02d}: train_loss={train_loss:.4f} val_loss={val_loss:.4f} "
-              f"train_acc={train_acc*100:.2f}% val_acc={val_acc*100:.2f}%")
+        print(f"Epoch {epoch:02d}: train_loss={train_loss:.4f} val_loss={val_loss:.4f} "f"train_acc={train_acc*100:.2f}% val_acc={val_acc*100:.2f}%")
 
     test_loss, test_acc = evaluate(test_loader)
     print(f"Test: loss={test_loss:.4f} acc={test_acc*100:.2f}%")

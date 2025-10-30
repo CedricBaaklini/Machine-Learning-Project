@@ -47,7 +47,6 @@ def optimize_epoch(model, dataloader, optimizer, loss_fn_placeholder, device='cp
     """
     Perform one training epoch on MNIST using a placeholder loss function.
     """
-
     model.train()
     total_loss = 0.0
     num_batches = 0

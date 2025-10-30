@@ -6,12 +6,8 @@ from torchvision import datasets, transforms
 
 torch.manual_seed(42)
 
-# Hyperparameters
-# Batch Sampling Size - How many samples per batch
 batch_size = 128
-# Learning Rate - Weights updated during training
 lr = 1e-3
-# Epoch # - Times entire training dataset is passed through the mode
 num_epochs = 20
 
 transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize(0.1307, 0.3081)])
@@ -67,6 +63,7 @@ def train_one_epoch(model, train_loader, optimizer, criterion, device):
     accuracy = correct / total
     return avg_loss, accuracy
 
+# --- Main Training Loop ---
 def main():
     num_workers = 0
     pin_memory = torch.cuda.is_available()
@@ -84,13 +81,15 @@ def main():
 
     model.to(device)
 
-    # Lists for plotting
-    train_losses, val_losses, train_accuracies, val_accuracies = [], [], [], []
-
-    # Training Loop - Noah
     for epoch in range(1, num_epochs + 1):
         train_loss, train_acc = train_one_epoch(model, train_loader, optimizer, criterion, device)
         val_loss, val_acc = evaluate(val_loader)
+
+        epoch_losses.append(train_loss)
+        val_losses.append(val_loss)
+        val_accs.append(val_acc)
+
+        print(f"Epoch {epoch:02d}: train_loss={train_loss:.4f} val_loss={val_loss:.4f} val_acc={val_acc * 100:.2f}%")
         train_losses.append(train_loss)
         val_losses.append(val_loss)
         train_accuracies.append(train_acc)
@@ -98,7 +97,7 @@ def main():
         print(f"Epoch {epoch:02d}: train_loss={train_loss:.4f} val_loss={val_loss:.4f} "f"train_acc={train_acc*100:.2f}% val_acc={val_acc*100:.2f}%")
 
     test_loss, test_acc = evaluate(test_loader)
-    print(f"Test: loss={test_loss:.4f} acc={test_acc*100:.2f}%")
+    print(f"Test: loss={test_loss:.4f} acc={test_acc * 100:.2f}%")
 
     # Plotting - Noah
     import matplotlib.pyplot as plt
@@ -122,6 +121,28 @@ def main():
 
     plt.tight_layout()
     plt.savefig("training_results.png") 
+
+    # ---- Save Plots ----
+    out_dir = Path("reports")
+    out_dir.mkdir(parents = True, exist_ok= True)
+
+    plt.figure()
+    plt.plot(epoch_losses, label = "train")
+    plt.plot(val_losses, label = "val")
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.title(f"Loss ({loss_name})")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(out_dir / f"loss_curve_{loss_name}.png", dpi = 150)
+
+    plt.figure()
+    plt.plot([a * 100 for a in val_accs])
+    plt.xlabel("Epoch")
+    plt.ylabel("Val Acc (%)")
+    plt.title(f"Val Accuracy ({loss_name})")
+    plt.tight_layout()
+    plt.savefig(out_dir / f"val_acc_{loss_name}.png", dpi = 150)
 
 if __name__ == "__main__":
     main()

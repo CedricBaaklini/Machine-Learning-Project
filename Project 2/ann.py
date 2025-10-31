@@ -62,7 +62,7 @@ torch.manual_seed(42)
 batch_size = 128
 # Learning Rate - Weights updated during training
 lr = 1e-3
-# Epoch # - Times entire training dataset is passed through the mode
+# Epoch # - Times the entire training dataset is passed through the mode
 num_epochs = 20
 
 # --- Data Preprocessing ---

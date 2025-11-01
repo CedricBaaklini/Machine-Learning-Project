@@ -1,23 +1,13 @@
-"""
-Project 2 - Artificial Neural Network using MNIST dataset
-Description:
-   This script trains a simple feedforward neural network on the MNIST dataset.
-   It implements Cross-Entropy Loss for multi-class classification using PyTorch.
-   The model is trained for 20 epochs and outputs two plots:
-       - loss_curve_CE.png (training and validation loss)
-       - val_acc_CE.png (validation accuracy)
-"""
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from matplotlib import pyplot as plt
-from pathlib2 import Path
+import matplotlib.pyplot as plt
+from pathlib import Path
 from torch.utils.data import DataLoader, random_split
 from torchvision import datasets, transforms
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 
-# --- Loss Function ---
-def make_loss(name="ce", class_weights=None):
+# --- Loss Function --- Marco
+def make_loss(name = "ce", class_weights = None):
     """
     Creates and returns a specified loss function.
     Default: CrossEntropyLoss for multi-class classification.
@@ -28,13 +18,19 @@ def make_loss(name="ce", class_weights=None):
         return nn.CrossEntropyLoss(weight = class_weights)
     raise ValueError(f"Unknown loss '{name}'")
 
-def optimize_epoch(model, dataloader, optimizer, loss_fn_placeholder, device='cpu'):
+# --- Optimization Function --- Janelle
+def optimize_mnist(model, dataloader, optimizer, loss_fn_placeholder, device='cpu'):
+    """
+    Perform one training epoch on MNIST using a placeholder loss function.
+    """    
+
     model.train()
     total_loss = 0.0
     num_batches = 0
 
     #images and labels in dataloader:
     for images, labels in dataloader:
+
         images = images.to(device)
         labels = labels.to(device)
         optimizer.zero_grad()
@@ -52,151 +48,136 @@ def optimize_epoch(model, dataloader, optimizer, loss_fn_placeholder, device='cp
         total_loss += loss.item()
         num_batches += 1
 
-    avg_loss = total_loss / num_batches
+    avg_loss = total_loss / len(dataloader)
+    
     return avg_loss
 
 torch.manual_seed(42)
 
-# Hyperparameters
-# Batch Sampling Size - How many samples per batch
-batch_size = 128
-# Learning Rate - Weights updated during training
-lr = 1e-3
-# Epoch # - Times the entire training dataset is passed through the mode
-num_epochs = 20
+# --- Hyperparameters ---
+batch_size = 256
+lr = 1e-4
+num_epochs = 70
 
 # --- Data Preprocessing ---
-transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize(0.1307, 0.3081)])
+transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081))])
 
 # --- Neural Network Architecture ---
 class SimpleANN(nn.Module):
     def __init__(self):
         super().__init__()
-        self.net = nn.Sequential(nn.Flatten(), nn.Linear(784, 256), nn.ReLU(inplace=True), nn.Linear(256, 128), nn.ReLU(inplace=True), nn.Linear(128, 10))
-        
+        self.net = nn.Sequential(nn.Flatten(), nn.Linear(784, 256), nn.ReLU(inplace=True), nn.Dropout(0.2), nn.Linear(256, 128), nn.ReLU(inplace=True), nn.Dropout(0.2), nn.Linear(128, 10))
+        # includes dropout layers for regularization
     def forward(self, x):
         return self.net(x)
 
-# ---- Setup ----
-model = SimpleANN()
-
-loss_name = "CE" # Cross-Entropy Loss
-
-criterion = make_loss(loss_name)
-
-optimizer = optim.Adam(model.parameters(), lr=lr)
+# --- Device Configuration ---
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-model = model.to(device)
 # --- Evaluation Function ---
-
-def evaluate(loader):
+def evaluate(model, dataloader, criterion, device='cpu'):
     """
     Evaluates model performance on a given dataset loader.
     Returns average loss and classification accuracy.
     """
     model.eval()
-    correct, total, loss_sum, batches = 0, 0, 0.0, 0
+    loss_total = 0.0
+    correct = 0
+    total = 0
     with torch.no_grad():
-        for x, y in loader:
-            x, y = x.to(device, non_blocking=True), y.to(device, non_blocking=True)
-            logits = model(x)
-            loss = criterion(logits, y)
-            loss_sum += loss.item()
-            batches += 1
-            preds = logits.argmax(dim=1)
-            correct += (preds == y).sum().item()
+        for x, y in dataloader:
+            x, y = x.to(device), y.to(device)
+            outputs = model(x)
+            loss = criterion(outputs, y)
+            loss_total += loss.item() * x.size(0)
+            _, predicted = torch.max(outputs, 1)
+            correct += (predicted == y).sum().item()
             total += y.size(0)
+    avg_loss = loss_total / total
+    accuracy = correct / total
+    return avg_loss, accuracy
 
-    return loss_sum / max(1, batches), correct / max(1, total)
-
+# --- Main Function ---
 def main():
     """
     Main training function: loads data, trains the model, evaluates, and saves results.
     """
-    data_dir = Path("./data")
-    data_dir.mkdir(parents=True, exist_ok=True)
+    loss_name = "ce"  # Cross Entropy Loss
+    num_workers = 0
+    pin_memory = torch.cuda.is_available()
+    epoch_losses, val_losses, val_accs = [], [], []
 
-    # Load MNIST
-    train_full = datasets.MNIST(root=str(data_dir), train=True, download=True, transform=transform)
-    test_ds = datasets.MNIST(root=str(data_dir), train=False, download=True, transform=transform)
+    train_full = datasets.MNIST(root="./data", train=True, download=True, transform=transform)
+    test_set = datasets.MNIST(root="./data", train=False, download=True, transform=transform)
 
-    # Split train into train/val
+    train_size = 50_000
     val_size = 10_000
-    train_size = len(train_full) - val_size
-    train_ds, val_ds = random_split(train_full, [train_size, val_size], generator=torch.Generator().manual_seed(42))
+    train_set, val_set = random_split(train_full, [train_size, val_size], torch.Generator().manual_seed(42))
 
-    train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True, pin_memory=True)
-    val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False, pin_memory=True)
-    test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False, pin_memory=True)
+    train_loader = DataLoader(train_set, batch_size, True, num_workers=num_workers, pin_memory=pin_memory)
+    val_loader = DataLoader(val_set, batch_size, False, num_workers=num_workers, pin_memory=pin_memory)
+    test_loader = DataLoader(test_set, batch_size, False, num_workers=num_workers, pin_memory=pin_memory)
 
-    train_losses, val_losses, val_accs = [], [], []
+    #model.to(device)
+    model = SimpleANN().to(device)
+    criterion = make_loss("ce")
+    optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=1e-4)
 
+    # Training Loop with Early Stopping - Noah
+    # --- Early Stopping Setup ---
+    best_val_loss = float('inf')
+    patience = 5 # Number of epochs to wait for validation loss improvement
+    counter = 0
+
+    # Trainign Loop - Noah
     for epoch in range(1, num_epochs + 1):
-        tr_loss = optimize_epoch(model, train_loader, optimizer, criterion, device=device)
-        val_loss, val_acc = evaluate(val_loader)
-        train_losses.append(tr_loss)
+        model.train()
+        train_loss = optimize_mnist(model, train_loader, optimizer, criterion, device=device)
+        val_loss, val_acc = evaluate(model, val_loader, criterion, device=device)
+
+        epoch_losses.append(train_loss)
         val_losses.append(val_loss)
         val_accs.append(val_acc)
-        print(f"Epoch {epoch:02d}/{num_epochs}  |  train_loss={tr_loss:.4f}  val_loss={val_loss:.4f}  val_acc={val_acc:.4f}")
 
-    # Final test eval
-    test_loss, test_acc = evaluate(test_loader)
-    print(f"Test  |  loss={test_loss:.4f}  acc={test_acc:.4f}")
+        print(f"Epoch {epoch:02d}: train_loss={train_loss:.4f} val_loss={val_loss:.4f} val_acc={val_acc * 100:.2f}%")
 
-    # ----- Graphs -----
-    # 1) Training/Validation Loss
-    plt.figure(figsize=(6,4))
-    plt.plot(train_losses, label="Train")
-    plt.plot(val_losses, label="Val")
-    plt.xlabel("Epoch"); plt.ylabel("Loss")
-    plt.title("Loss Curve")
-    plt.legend(); plt.tight_layout(); plt.savefig("loss_curve.png", dpi=150); plt.close()
+        # --- Early Stopping Logic ---
+        if val_loss < best_val_loss:
+            best_val_loss = val_loss
+            counter = 0
+            torch.save(model.state_dict(), "best_model.pt")  # Save best model
+        else:
+            counter += 1
+            if counter >= patience:
+                print(f"Early stopping at epoch {epoch}")
+                break
 
-    # 2) Validation Accuracy
-    plt.figure(figsize=(6,4))
-    plt.plot(val_accs, label="Val Acc")
-    plt.xlabel("Epoch"); plt.ylabel("Accuracy")
-    plt.title("Validation Accuracy")
-    plt.ylim(0,1)
-    plt.tight_layout(); plt.savefig("val_accuracy.png", dpi=150); plt.close()
+    # Load the best model before testing
+    model.load_state_dict(torch.load("best_model.pt"))
+    test_loss, test_acc = evaluate(model, test_loader, criterion, device=device)
+    print(f"Test: loss={test_loss:.4f} acc={test_acc * 100:.2f}%")
 
-    # 3) Confusion Matrix (on test set)
-    model.eval()
-    all_preds, all_labels = [], []
-    with torch.no_grad():
-        for x, y in test_loader:
-            x = x.to(device)
-            logits = model(x)
-            preds = logits.argmax(dim=1).cpu().numpy().tolist()
-            all_preds.extend(preds)
-            all_labels.extend(y.numpy().tolist())
-    cm = confusion_matrix(all_labels, all_preds, labels=list(range(10)))
-    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=list(range(10)))
-    fig, ax = plt.subplots(figsize=(6,6))
-    disp.plot(ax=ax, cmap="Blues", colorbar=False)
-    plt.title(f"Confusion Matrix (Test acc={test_acc:.3f})")
-    plt.tight_layout(); plt.savefig("confusion_matrix.png", dpi=150); plt.close()
+    # ---- Save Plots ----
+    out_dir = Path("reports")
+    out_dir.mkdir(parents = True, exist_ok= True)
 
-    # 4) Prediction Grid (first 36 test images)
-    images, labels = next(iter(test_loader))
-    images, labels = images[:36], labels[:36]
-    model.eval()
-    with torch.no_grad():
-        logits = model(images.to(device))
-        preds = logits.argmax(dim=1).cpu()
-    images = images.squeeze(1).numpy()  # (N, 28, 28)
+    plt.figure()
+    plt.plot(epoch_losses, label = "train")
+    plt.plot(val_losses, label = "val")
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.title(f"Loss ({loss_name})")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(out_dir / f"loss_curve_{loss_name}.png", dpi = 150)
 
-    fig, axes = plt.subplots(6, 6, figsize=(8,8))
-    for i, ax in enumerate(axes.flatten()):
-        ax.imshow(images[i], cmap="gray")
-        ax.set_title(f"P:{preds[i].item()} T:{labels[i].item()}", fontsize=8)
-        ax.axis("off")
-    plt.suptitle("Sample Predictions (Test)", y=0.92)
-    plt.tight_layout(); plt.savefig("sample_predictions.png", dpi=150); plt.close()
-
-    # Save model
-    torch.save(model.state_dict(), "mnist_simple_ann.pt")
+    plt.figure()
+    plt.plot([a * 100 for a in val_accs])
+    plt.xlabel("Epoch")
+    plt.ylabel("Val Acc (%)")
+    plt.title(f"Val Accuracy ({loss_name})")
+    plt.tight_layout()
+    plt.savefig(out_dir / f"val_acc_{loss_name}.png", dpi = 150)
 
 if __name__ == "__main__":
     main()

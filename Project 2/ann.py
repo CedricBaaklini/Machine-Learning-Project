@@ -60,7 +60,7 @@ lr = 1e-4
 num_epochs = 70
 
 # --- Data Preprocessing ---
-transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081))])
+transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize(0.1307, 0.3081)])
 
 # --- Neural Network Architecture ---
 class SimpleANN(nn.Module):
@@ -68,6 +68,7 @@ class SimpleANN(nn.Module):
         super().__init__()
         self.net = nn.Sequential(nn.Flatten(), nn.Linear(784, 256), nn.ReLU(inplace=True), nn.Dropout(0.2), nn.Linear(256, 128), nn.ReLU(inplace=True), nn.Dropout(0.2), nn.Linear(128, 10))
         # includes dropout layers for regularization
+    
     def forward(self, x):
         return self.net(x)
 

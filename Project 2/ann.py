@@ -62,6 +62,7 @@ num_epochs = 70
 # --- Data Preprocessing ---
 transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize(0.1307, 0.3081)])
 
+
 # --- Neural Network Architecture ---
 class SimpleANN(nn.Module):
     def __init__(self):

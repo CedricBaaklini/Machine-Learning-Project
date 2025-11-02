@@ -57,7 +57,7 @@ torch.manual_seed(42)
 # --- Hyperparameters ---
 batch_size = 256
 lr = 1e-4
-num_epochs = 70
+num_epochs = 50
 
 # --- Data Preprocessing ---
 transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081))])
@@ -118,13 +118,11 @@ def main():
     val_loader = DataLoader(val_set, batch_size, False, num_workers=num_workers, pin_memory=pin_memory)
     test_loader = DataLoader(test_set, batch_size, False, num_workers=num_workers, pin_memory=pin_memory)
 
-    #model.to(device)
     model = SimpleANN().to(device)
     criterion = make_loss("ce")
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=1e-4)
 
-    # Training Loop with Early Stopping - Noah
-    # --- Early Stopping Setup ---
+    # --- Early Stopping Setup --- Noah
     best_val_loss = float('inf')
     patience = 5 # Number of epochs to wait for validation loss improvement
     counter = 0
@@ -162,8 +160,8 @@ def main():
     out_dir.mkdir(parents = True, exist_ok= True)
 
     plt.figure()
-    plt.plot(epoch_losses, label = "train")
-    plt.plot(val_losses, label = "val")
+    plt.plot(epoch_losses, label = "Training Loss")
+    plt.plot(val_losses, label = "Validation Loss")
     plt.xlabel("Epoch")
     plt.ylabel("Loss")
     plt.title(f"Loss ({loss_name})")

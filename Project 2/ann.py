@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader, random_split
 from torchvision import datasets, transforms
 
 # --- Loss Function --- Marco
-def make_loss(name = "ce", class_weights = None):
+def make_loss(name="ce", class_weights=None):
     """
     Creates and returns a specified loss function.
     Default: CrossEntropyLoss for multi-class classification.
@@ -15,7 +15,7 @@ def make_loss(name = "ce", class_weights = None):
     name = name.lower()
 
     if name == "ce":
-        return nn.CrossEntropyLoss(weight = class_weights)
+        return nn.CrossEntropyLoss(weight=class_weights)
     raise ValueError(f"Unknown loss '{name}'")
 
 # --- Optimization Function --- Janelle

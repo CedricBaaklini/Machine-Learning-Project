@@ -104,7 +104,7 @@ def main():
     """
     Main training function: loads data, trains the model, evaluates, and saves results.
     """
-    loss_name = "ce"  # Cross Entropy Loss
+    loss_name = "ce"  # Cross-Entropy Loss
     num_workers = 0
     pin_memory = torch.cuda.is_available()
     epoch_losses, val_losses, val_accs = [], [], []

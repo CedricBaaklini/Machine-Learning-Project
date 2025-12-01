@@ -68,7 +68,8 @@ transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize(0.13
 class SimpleCNN(nn.Module):
     def __init__(self):
         super().__init__()
-        self.net = nn.Sequential(
+
+        self.features = nn.Sequential(
             nn.Conv2d(1, 32, kernel_size=3, padding=1), 
             nn.ReLU(inplace=True), 
             nn.MaxPool2d(kernel_size=2, stride=2),
@@ -76,16 +77,20 @@ class SimpleCNN(nn.Module):
             nn.Conv2d(32, 64, kernel_size=3, padding=1),
             nn.ReLU(inplace=True),
             nn.MaxPool2d(kernel_size=2, stride=2),
-            
+        )
+
+        self.classifier = nn.Sequential(
             nn.Flatten(),
             nn.Linear(64 * 7 * 7, 128),
-            nn.ReLU(inplace=True),
+            nn.ReLU(inplace = True),
             nn.Dropout(0.5),
             nn.Linear(128, 10)
         )
     
     def forward(self, x):
-        return self.net(x)
+        x = self.features(x)
+        x = self.classifier(x)
+        return x
 
 # --- Device Configuration ---
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

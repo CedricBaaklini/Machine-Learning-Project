@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.optim as optim
 from pathlib import Path
 
+from matplotlib import pyplot as plt
 from torch.utils.data import DataLoader, random_split
 from torchvision import datasets, transforms
 
@@ -175,6 +176,25 @@ def main():
     # ---- Save Plots ----
     out_dir = Path("reports")
     out_dir.mkdir(parents=True, exist_ok=True)
+
+
+    plt.figure()
+    plt.plot(epoch_losses, label="train")
+    plt.plot(val_losses, label="val")
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.title(f"Loss ({loss_name})")
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(out_dir / f"loss_curve_{loss_name}.png", dpi=150)
+
+    plt.figure()
+    plt.plot([a * 100 for a in val_accs])
+    plt.xlabel("Epoch")
+    plt.ylabel("Val Acc (%)")
+    plt.title(f"Val Accuracy ({loss_name})")
+    plt.tight_layout()
+    plt.savefig(out_dir / f"val_acc_{loss_name}.png", dpi=150)
 
 if __name__ == "__main__":
     main()

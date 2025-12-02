@@ -20,9 +20,9 @@ def make_loss(name="ce", class_weights=None):
     raise ValueError(f"Unknown loss '{name}'")
 
 # --- Optimization Function --- Janelle
-def optimize_mnist(model, dataloader, optimizer, loss_fn_placeholder, device='cpu'):
+def optimize_epoch(model, dataloader, optimizer, loss_fn_placeholder, device='cpu'):
     """
-    Perform one training epoch on MNIST using a placeholder loss function.
+    Perform one training epoch on the given dataloader using the specified loss function.
     """    
 
     model.train()
@@ -61,7 +61,13 @@ lr = 1e-4
 num_epochs = 70
 
 # --- Data Preprocessing ---
-transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize(0.1307, 0.3081)])
+transform = transforms.Compose([
+    transforms.ToTensor(), 
+    transforms.Normalize(
+        mean = [0.4914, 0.4822, 0.4465],
+        std = [0.2470, 0.2435, 0.2616]
+    )
+])
 
 
 # --- Neural Network Architecture ---
@@ -70,7 +76,7 @@ class SimpleCNN(nn.Module):
         super().__init__()
 
         self.features = nn.Sequential(
-            nn.Conv2d(1, 32, kernel_size=3, padding=1), 
+            nn.Conv2d(3, 32, kernel_size=3, padding=1), 
             nn.ReLU(inplace=True), 
             nn.MaxPool2d(kernel_size=2, stride=2),
 
@@ -81,7 +87,7 @@ class SimpleCNN(nn.Module):
 
         self.classifier = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(64 * 7 * 7, 128),
+            nn.Linear(64 * 8 * 8, 128),
             nn.ReLU(inplace = True),
             nn.Dropout(0.5),
             nn.Linear(128, 10)
@@ -128,8 +134,8 @@ def main():
     pin_memory = torch.cuda.is_available()
     epoch_losses, val_losses, val_accs = [], [], []
 
-    train_full = datasets.MNIST(root="./data", train=True, download=True, transform=transform)
-    test_set = datasets.MNIST(root="./data", train=False, download=True, transform=transform)
+    train_full = datasets.CIFAR10(root="./data", train=True, download=True, transform=transform)
+    test_set = datasets.CIFAR10(root="./data", train=False, download=True, transform=transform)
 
     train_size = 50_000
     val_size = 10_000
@@ -153,7 +159,7 @@ def main():
     # Trainign Loop - Noah
     for epoch in range(1, num_epochs + 1):
         model.train()
-        train_loss = optimize_mnist(model, train_loader, optimizer, criterion, device=device)
+        train_loss = optimize_epoch(model, train_loader, optimizer, criterion, device=device)
         val_loss, val_acc = evaluate(model, val_loader, criterion, device=device)
 
         epoch_losses.append(train_loss)

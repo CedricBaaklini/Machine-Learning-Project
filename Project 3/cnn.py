@@ -137,8 +137,9 @@ def main():
     train_full = datasets.CIFAR10(root="./data", train=True, download=True, transform=transform)
     test_set = datasets.CIFAR10(root="./data", train=False, download=True, transform=transform)
 
-    train_size = 50_000
-    val_size = 10_000
+    num_train = len(train_full)
+    train_size = int(num_train * 0.8) #80% train
+    val_size = num_train - train_size
     train_set, val_set = random_split(train_full, [train_size, val_size], torch.Generator().manual_seed(42))
 
     train_loader = DataLoader(train_set, batch_size, True, num_workers=num_workers, pin_memory=pin_memory)

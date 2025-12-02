@@ -1,212 +1,194 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from pathlib import Path
-
-from matplotlib import pyplot as plt
 from torch.utils.data import DataLoader, random_split
 from torchvision import datasets, transforms
+import matplotlib.pyplot as plt
+import numpy as np
+from pathlib import Path
 
-# --- Loss Function --- Marco
-def make_loss(name="ce", class_weights=None):
-    """
-    Creates and returns a specified loss function.
-    Default: CrossEntropyLoss for multi-class classification.
-    """
-    name = name.lower()
+# --- Hyperparameters (for tuning) ---
+BATCH_SIZE = 128
+EPOCHS = 25
+LEARNING_RATE = 0.001
+DROPOUT = 0.35
+VAL_SPLIT = 0.1
+RANDOM_SEED = 42
+WEIGHT_DECAY = 1e-4
 
-    if name == "ce":
-        return nn.CrossEntropyLoss(weight=class_weights)
-    raise ValueError(f"Unknown loss '{name}'")
-
-# --- Optimization Function --- Janelle
-def optimize_epoch(model, dataloader, optimizer, loss_fn_placeholder, device='cpu'):
-    """
-    Perform one training epoch on the given dataloader using the specified loss function.
-    """    
-
-    model.train()
-    total_loss = 0.0
-    num_batches = 0
-
-    #images and labels in dataloader:
-    for images, labels in dataloader:
-
-        images = images.to(device)
-        labels = labels.to(device)
-        optimizer.zero_grad()
-
-        #Forward pass
-        outputs = model(images)
-
-        #Compute loss using placeholder
-        loss = loss_fn_placeholder(outputs, labels)
-
-        #Backpropagation
-        loss.backward()
-        optimizer.step()
-
-        total_loss += loss.item()
-        num_batches += 1
-
-    avg_loss = total_loss / len(dataloader)
-    
-    return avg_loss
-
-torch.manual_seed(42)
-
-# --- Hyperparameters ---
-batch_size = 256
-lr = 1e-4
-num_epochs = 70
-
-# --- Data Preprocessing ---
-transform = transforms.Compose([
-    transforms.ToTensor(), 
-    transforms.Normalize(
-        mean = [0.4914, 0.4822, 0.4465],
-        std = [0.2470, 0.2435, 0.2616]
-    )
+# --- Data Augmentation and Normalization ---
+train_transform = transforms.Compose([
+    transforms.RandomCrop(32, padding=4),
+    transforms.RandomHorizontalFlip(),
+    transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),  # Add color jitter
+    transforms.RandomRotation(15),  # Random rotation up to 15 degrees
+    transforms.RandomAffine(degrees=0, translate=(0.1, 0.1)),  # Random translation
+    transforms.ToTensor(),
+    transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+])
+test_transform = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
 ])
 
+# --- Dataset Loading and Splitting ---
+def load_datasets():
+    full_train = datasets.CIFAR10(root='./data', train=True, download=True, transform=train_transform)
+    test_set = datasets.CIFAR10(root='./data', train=False, download=True, transform=test_transform)
+    val_size = int(VAL_SPLIT * len(full_train))
+    train_size = len(full_train) - val_size
+    train_set, val_set = random_split(full_train, [train_size, val_size], generator=torch.Generator().manual_seed(RANDOM_SEED))
+    return train_set, val_set, test_set
 
-# --- Neural Network Architecture ---
-class SimpleCNN(nn.Module):
-    def __init__(self):
+# --- Visualization ---
+def visualize_samples(dataset, classes):
+    loader = DataLoader(dataset, batch_size=8, shuffle=True)
+    images, labels = next(iter(loader))
+    images = images[:8]
+    labels = labels[:8]
+    fig, axes = plt.subplots(1, 8, figsize=(16, 2))
+    for i in range(8):
+        img = images[i].permute(1, 2, 0).numpy()
+        img = np.clip((img * np.array([0.2023, 0.1994, 0.2010])) + np.array([0.4914, 0.4822, 0.4465]), 0, 1)
+        axes[i].imshow(img)
+        axes[i].set_title(classes[labels[i]])
+        axes[i].axis('off')
+    plt.tight_layout()
+    Path("reports").mkdir(exist_ok=True)
+    plt.savefig("reports/sample_images.png")
+    plt.close()
+
+# --- CNN Model ---
+class ConvNetCIFAR10(nn.Module):
+    def __init__(self, dropout=DROPOUT):
         super().__init__()
-
-        self.features = nn.Sequential(
-            nn.Conv2d(3, 32, kernel_size=3, padding=1), 
-            nn.ReLU(inplace=True), 
-            nn.MaxPool2d(kernel_size=2, stride=2),
-
+        self.conv1 = nn.Sequential(
+            nn.Conv2d(3, 32, kernel_size=3, padding=1),
+            nn.BatchNorm2d(32),
+            nn.ReLU()
+        )
+        self.conv2 = nn.Sequential(
             nn.Conv2d(32, 64, kernel_size=3, padding=1),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=2, stride=2),
+            nn.BatchNorm2d(64),
+            nn.ReLU()
         )
+        self.conv3 = nn.Sequential(
+            nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            nn.BatchNorm2d(128),
+            nn.ReLU()
+        )
+        self.pool = nn.MaxPool2d(2, 2)
+        self.dropout = nn.Dropout(dropout)
+        self.fc1 = nn.Linear(128 * 4 * 4, 128)
+        self.fc2 = nn.Linear(128, 10)
 
-        self.classifier = nn.Sequential(
-            nn.Flatten(),
-            nn.Linear(64 * 8 * 8, 128),
-            nn.ReLU(inplace = True),
-            nn.Dropout(0.5),
-            nn.Linear(128, 10)
-        )
-    
     def forward(self, x):
-        x = self.features(x)
-        x = self.classifier(x)
+        x = self.conv1(x)
+        x = self.pool(x)
+        x = self.conv2(x)
+        x = self.pool(x)
+        x = self.conv3(x)
+        x = self.pool(x)
+        x = x.view(x.size(0), -1)
+        x = self.dropout(torch.relu(self.fc1(x)))
+        x = self.fc2(x)
         return x
 
-# --- Device Configuration ---
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# --- Training and Evaluation ---
+def train_epoch(model, loader, optimizer, criterion, device):
+    model.train()
+    running_loss, correct, total = 0.0, 0, 0
+    for x, y in loader:
+        x, y = x.to(device), y.to(device)
+        optimizer.zero_grad()
+        outputs = model(x)
+        loss = criterion(outputs, y)
+        loss.backward()
+        optimizer.step()
+        running_loss += loss.item() * x.size(0)
+        _, predicted = torch.max(outputs, 1)
+        correct += (predicted == y).sum().item()
+        total += y.size(0)
+    return running_loss / total, correct / total
 
-# --- Evaluation Function ---
-def evaluate(model, dataloader, criterion, device='cpu'):
-    """
-    Evaluates model performance on a given dataset loader.
-    Returns average loss and classification accuracy.
-    """
+def evaluate(model, loader, criterion, device):
     model.eval()
-    loss_total = 0.0
-    correct = 0
-    total = 0
+    running_loss, correct, total = 0.0, 0, 0
     with torch.no_grad():
-        for x, y in dataloader:
+        for x, y in loader:
             x, y = x.to(device), y.to(device)
             outputs = model(x)
             loss = criterion(outputs, y)
-            loss_total += loss.item() * x.size(0)
+            running_loss += loss.item() * x.size(0)
             _, predicted = torch.max(outputs, 1)
             correct += (predicted == y).sum().item()
             total += y.size(0)
-    avg_loss = loss_total / total
-    accuracy = correct / total
-    return avg_loss, accuracy
+    return running_loss / total, correct / total
 
-# --- Main Function ---
+# --- Main ---
 def main():
-    """
-    Main training function: loads data, trains the model, evaluates, and saves results.
-    """
-    loss_name = "ce"  # Cross-Entropy Loss
-    num_workers = 0
-    pin_memory = torch.cuda.is_available()
-    epoch_losses, val_losses, val_accs = [], [], []
-
-    train_full = datasets.CIFAR10(root="./data", train=True, download=True, transform=transform)
-    test_set = datasets.CIFAR10(root="./data", train=False, download=True, transform=transform)
-
-    num_train = len(train_full)
-    train_size = int(num_train * 0.8) #80% train
-    val_size = num_train - train_size
-    train_set, val_set = random_split(train_full, [train_size, val_size], torch.Generator().manual_seed(42))
-
-    train_loader = DataLoader(train_set, batch_size, True, num_workers=num_workers, pin_memory=pin_memory)
-    val_loader = DataLoader(val_set, batch_size, False, num_workers=num_workers, pin_memory=pin_memory)
-    test_loader = DataLoader(test_set, batch_size, False, num_workers=num_workers, pin_memory=pin_memory)
-
-    #model.to(device)
-    model = SimpleCNN().to(device)
-    criterion = make_loss("ce")
-    optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=1e-4)
-
-    # Training Loop with Early Stopping - Noah
-    # --- Early Stopping Setup ---
-    best_val_loss = float('inf')
-    patience = 5 # Number of epochs to wait for validation loss improvement
-    counter = 0
-
-    # Trainign Loop - Noah
-    for epoch in range(1, num_epochs + 1):
-        model.train()
-        train_loss = optimize_epoch(model, train_loader, optimizer, criterion, device=device)
-        val_loss, val_acc = evaluate(model, val_loader, criterion, device=device)
-
-        epoch_losses.append(train_loss)
-        val_losses.append(val_loss)
-        val_accs.append(val_acc)
-
-        print(f"Epoch {epoch:02d}: train_loss={train_loss:.4f} val_loss={val_loss:.4f} val_acc={val_acc * 100:.2f}%")
-
-        # --- Early Stopping Logic ---
-        if val_loss < best_val_loss:
-            best_val_loss = val_loss
-            counter = 0
-            torch.save(model.state_dict(), "best_model.pt")  # Save best model
-        else:
-            counter += 1
-            if counter >= patience:
-                print(f"Early stopping at epoch {epoch}")
-                break
-
-    # Load the best model before testing
-    model.load_state_dict(torch.load("best_model.pt"))
-    test_loss, test_acc = evaluate(model, test_loader, criterion, device=device)
-    print(f"Test: loss={test_loss:.4f} acc={test_acc * 100:.2f}%")
-
-    # ---- Save Plots ----
     out_dir = Path("reports")
     out_dir.mkdir(parents=True, exist_ok=True)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    train_set, val_set, test_set = load_datasets()
+    classes = datasets.CIFAR10(root='./data', train=False).classes
+    visualize_samples(train_set, classes)
+    train_loader = DataLoader(train_set, batch_size=BATCH_SIZE, shuffle=True, num_workers=2)
+    val_loader = DataLoader(val_set, batch_size=BATCH_SIZE, shuffle=False, num_workers=2)
+    test_loader = DataLoader(test_set, batch_size=BATCH_SIZE, shuffle=False, num_workers=2)
+    model = ConvNetCIFAR10(dropout=DROPOUT).to(device)
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(model.parameters(), lr=LEARNING_RATE, weight_decay=WEIGHT_DECAY)
+    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)  # Halve LR every 10 epochs
 
+    train_losses, val_losses, train_accs, val_accs, test_losses, test_accs = [], [], [], [], [], []
+    best_acc = 0.0
+    best_state = None
 
+    for epoch in range(EPOCHS):
+        train_loss, train_acc = train_epoch(model, train_loader, optimizer, criterion, device)
+        val_loss, val_acc = evaluate(model, val_loader, criterion, device)
+        test_loss, test_acc = evaluate(model, test_loader, criterion, device)
+        train_losses.append(train_loss)
+        val_losses.append(val_loss)
+        train_accs.append(train_acc)
+        val_accs.append(val_acc)
+        test_losses.append(test_loss)
+        test_accs.append(test_acc)
+        if val_acc > best_acc:
+            best_acc = val_acc
+            best_state = model.state_dict()
+        print(f"Epoch {epoch+1}/{EPOCHS} - Train Loss: {train_loss:.4f} Acc: {train_acc*100:.2f}% | Val Loss: {val_loss:.4f} Acc: {val_acc*100:.2f}%")
+
+    torch.save(best_state, "best_cifar10_model.pth")
+    model.load_state_dict(torch.load("best_cifar10_model.pth"))
+    test_loss, test_acc = evaluate(model, test_loader, criterion, device)
+    print(f"Final Test Loss: {test_loss:.4f} | Final Test Accuracy: {test_acc*100:.2f}%")
+
+    # --- Plotting ---
     plt.figure()
-    plt.plot(epoch_losses, label="train")
-    plt.plot(val_losses, label="val")
+    plt.plot(train_losses, label="Train Loss")
+    plt.plot(val_losses, label="Val Loss")
+    plt.plot(test_losses, label="Test Loss")
     plt.xlabel("Epoch")
     plt.ylabel("Loss")
-    plt.title(f"Loss ({loss_name})")
+    plt.title("Loss Curve")
     plt.legend()
     plt.tight_layout()
-    plt.savefig(out_dir / f"loss_curve_{loss_name}.png", dpi=150)
+    plt.savefig(out_dir / "loss_curve.png", dpi=150)
+    plt.close()
 
     plt.figure()
-    plt.plot([a * 100 for a in val_accs])
+    plt.plot([a * 100 for a in train_accs], label="Train Acc")
+    plt.plot([a * 100 for a in val_accs], label="Val Acc")
+    plt.plot([a * 100 for a in test_accs], label="Test Acc")
     plt.xlabel("Epoch")
-    plt.ylabel("Val Acc (%)")
-    plt.title(f"Val Accuracy ({loss_name})")
+    plt.ylabel("Accuracy (%)")
+    plt.title("Accuracy Curve")
+    plt.legend()
     plt.tight_layout()
-    plt.savefig(out_dir / f"val_acc_{loss_name}.png", dpi=150)
+    plt.savefig(out_dir / "acc_curve.png", dpi=150)
+    plt.close()
 
 if __name__ == "__main__":
     main()
